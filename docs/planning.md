@@ -1,6 +1,7 @@
 # Cartlog 기획서
 
 > 마지막 업데이트: 2026-03-08
+> 업데이트 이력: [2026-03-08] 초안 작성 / [2026-03-08] 데이터 저장 전략 추가 / [2026-03-08] 저장소 확정
 
 ---
 
@@ -40,6 +41,30 @@
 | 패키지명 | com.clem.cartlog |
 | OCR | Google ML Kit (Text Recognition) |
 | 플랫폼 | Android 우선, iOS 추후 |
+| 로컬 DB | **Drift** (SQLite ORM) |
+| 클라우드 | **Firebase Firestore** (2단계 도입) |
+
+---
+
+## 데이터 저장 전략
+
+### 현재 방향
+- **1단계 (개인용):** 로컬 저장만 사용
+- **2단계 (퍼블릭 배포 시):** 클라우드 동기화 도입 검토
+
+### 로컬 저장소 — **Drift** ✅ 확정
+
+- SQLite 기반 타입세이프 ORM
+- 테이블/쿼리를 Dart 코드로 정의 → 유지보수 용이
+- Repository 패턴으로 설계 시 2단계 클라우드 전환 시 영향 최소화
+
+### 클라우드 저장소 — **Firebase Firestore** ✅ 확정 (2단계)
+
+- FlutterFire 공식 지원, Flutter와 궁합 최상
+- 오프라인 우선(offline-first) 기본 내장
+- Firebase Auth로 로그인 연동 용이
+- 무료 티어(Spark Plan)로 소규모 운영 가능
+- ML Kit 등 Google 생태계 일관성 유지
 
 ---
 
