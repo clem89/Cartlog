@@ -43,3 +43,5 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+# Claude Code - local settings only, commands are shared
+.claude/settings.local.json
