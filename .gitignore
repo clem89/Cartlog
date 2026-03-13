@@ -45,3 +45,6 @@ app.*.map.json
 /android/app/release
 # Claude Code - local settings only, commands are shared
 .claude/settings.local.json
+
+# Drift / build_runner 자동생성 파일
+*.g.dart
