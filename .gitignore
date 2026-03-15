@@ -48,3 +48,4 @@ app.*.map.json
 
 # Drift / build_runner 자동생성 파일
 *.g.dart
+.gradle/
