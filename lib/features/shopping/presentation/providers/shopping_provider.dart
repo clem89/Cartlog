@@ -23,10 +23,10 @@ final itemsProvider =
   return ref.watch(shoppingRepositoryProvider).watchItemsBySession(sessionId);
 });
 
-final itemHistoryProvider = FutureProvider<List<ItemTableData>>((ref) {
-  return ref.watch(shoppingRepositoryProvider).getAllItems();
+final itemHistoryProvider = StreamProvider<List<ItemTableData>>((ref) {
+  return ref.watch(shoppingRepositoryProvider).watchAllItems();
 });
 
-final storeHistoryProvider = FutureProvider<List<String>>((ref) {
-  return ref.watch(shoppingRepositoryProvider).getStoreHistory();
+final storeHistoryProvider = StreamProvider<List<String>>((ref) {
+  return ref.watch(shoppingRepositoryProvider).watchStoreHistory();
 });

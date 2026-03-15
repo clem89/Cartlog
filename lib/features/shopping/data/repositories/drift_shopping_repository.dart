@@ -45,6 +45,23 @@ class DriftShoppingRepository implements ShoppingRepository {
           .get();
 
   @override
+  Stream<List<ItemTableData>> watchAllItems() =>
+      (_db.select(_db.itemTable)
+            ..orderBy([(t) => OrderingTerm.desc(t.id)]))
+          .watch();
+
+  @override
+  Stream<List<String>> watchStoreHistory() {
+    final query = _db.selectOnly(_db.itemTable)
+      ..addColumns([_db.itemTable.store])
+      ..where(_db.itemTable.store.isNotNull())
+      ..groupBy([_db.itemTable.store])
+      ..orderBy([OrderingTerm.desc(_db.itemTable.id)]);
+    return query.watch().map((rows) =>
+        rows.map((r) => r.read(_db.itemTable.store)).whereType<String>().toList());
+  }
+
+  @override
   Future<List<String>> getStoreHistory() async {
     final rows = await (_db.selectOnly(_db.itemTable)
           ..addColumns([_db.itemTable.store])

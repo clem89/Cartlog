@@ -26,8 +26,11 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
   final _memoController = TextEditingController();
 
   ItemCategory? _selectedCategory;
+  String? _customCategoryLabel;
   ItemCategory? _historyFilter;
   bool _isSaving = false;
+
+  String? get _effectiveCategory => _customCategoryLabel ?? _selectedCategory?.label;
 
   @override
   void dispose() {
@@ -40,9 +43,49 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     super.dispose();
   }
 
-  // 이전 항목 탭 → 이름만 채움
+  // 이전 항목 탭 → 이름 + 카테고리 채움
   void _fillNameFromHistory(ItemTableData item) {
-    _nameController.text = item.name;
+    setState(() {
+      _nameController.text = item.name;
+      if (item.category != null) {
+        final predefined = ItemCategory.fromLabel(item.category!);
+        if (predefined != null) {
+          _selectedCategory = predefined;
+          _customCategoryLabel = null;
+        } else {
+          _selectedCategory = null;
+          _customCategoryLabel = item.category;
+        }
+      }
+    });
+  }
+
+  Future<void> _showCustomCategoryDialog() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('카테고리 직접 입력'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: '카테고리명 입력'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        _selectedCategory = null;
+        _customCategoryLabel = result;
+      });
+    }
   }
 
   Future<void> _save() async {
@@ -58,7 +101,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
             unit: Value(_unitController.text.trim().isEmpty
                 ? null
                 : _unitController.text.trim()),
-            category: Value(_selectedCategory?.label),
+            category: Value(_effectiveCategory),
             store: Value(_storeController.text.trim().isEmpty
                 ? null
                 : _storeController.text.trim()),
@@ -150,17 +193,32 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
             const SizedBox(height: 6),
             Wrap(
               spacing: 8,
-              children: ItemCategory.values.map((cat) {
-                final selected = _selectedCategory == cat;
-                return ChoiceChip(
-                  label: Text(cat.label),
-                  selected: selected,
-                  selectedColor: cat.color.withValues(alpha: 0.3),
-                  onSelected: (_) => setState(() {
-                    _selectedCategory = selected ? null : cat;
-                  }),
-                );
-              }).toList(),
+              runSpacing: 4,
+              children: [
+                ...ItemCategory.values.map((cat) {
+                  final selected = _selectedCategory == cat && _customCategoryLabel == null;
+                  return ChoiceChip(
+                    label: Text(cat.label),
+                    selected: selected,
+                    selectedColor: cat.color.withValues(alpha: 0.3),
+                    onSelected: (_) => setState(() {
+                      _customCategoryLabel = null;
+                      _selectedCategory = selected ? null : cat;
+                    }),
+                  );
+                }),
+                if (_customCategoryLabel != null)
+                  ChoiceChip(
+                    label: Text(_customCategoryLabel!),
+                    selected: true,
+                    selectedColor: Colors.teal.withValues(alpha: 0.3),
+                    onSelected: (_) => setState(() => _customCategoryLabel = null),
+                  ),
+                ActionChip(
+                  label: const Text('+ 직접 입력'),
+                  onPressed: _showCustomCategoryDialog,
+                ),
+              ],
             ),
             const SizedBox(height: 12),
 

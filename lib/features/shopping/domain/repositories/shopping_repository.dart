@@ -10,6 +10,8 @@ abstract class ShoppingRepository {
 
   // Item
   Future<List<ItemTableData>> getAllItems();
+  Stream<List<ItemTableData>> watchAllItems();
+  Stream<List<String>> watchStoreHistory();
   Future<List<String>> getStoreHistory();
   Future<List<ItemTableData>> getItemsBySession(int sessionId);
   Stream<List<ItemTableData>> watchItemsBySession(int sessionId);

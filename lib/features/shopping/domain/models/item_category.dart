@@ -13,10 +13,11 @@ enum ItemCategory {
   final String label;
   final Color color;
 
-  static ItemCategory fromLabel(String label) {
-    return ItemCategory.values.firstWhere(
-      (c) => c.label == label,
-      orElse: () => ItemCategory.other,
-    );
+  static ItemCategory? fromLabel(String label) {
+    try {
+      return ItemCategory.values.firstWhere((c) => c.label == label);
+    } catch (_) {
+      return null;
+    }
   }
 }
