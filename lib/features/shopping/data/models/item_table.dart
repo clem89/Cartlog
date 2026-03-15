@@ -10,4 +10,6 @@ class ItemTable extends Table {
   RealColumn get quantity => real().withDefault(const Constant(1.0))();
   TextColumn get unit => text().nullable()();
   TextColumn get category => text().nullable()();
+  TextColumn get store => text().nullable()();
+  TextColumn get memo => text().nullable()();
 }

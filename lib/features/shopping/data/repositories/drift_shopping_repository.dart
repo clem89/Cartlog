@@ -39,6 +39,26 @@ class DriftShoppingRepository implements ShoppingRepository {
   // ── Item ─────────────────────────────────────────────────
 
   @override
+  Future<List<ItemTableData>> getAllItems() =>
+      (_db.select(_db.itemTable)
+            ..orderBy([(t) => OrderingTerm.desc(t.id)]))
+          .get();
+
+  @override
+  Future<List<String>> getStoreHistory() async {
+    final rows = await (_db.selectOnly(_db.itemTable)
+          ..addColumns([_db.itemTable.store])
+          ..where(_db.itemTable.store.isNotNull())
+          ..groupBy([_db.itemTable.store])
+          ..orderBy([OrderingTerm.desc(_db.itemTable.id)]))
+        .get();
+    return rows
+        .map((r) => r.read(_db.itemTable.store))
+        .whereType<String>()
+        .toList();
+  }
+
+  @override
   Future<List<ItemTableData>> getItemsBySession(int sessionId) =>
       (_db.select(_db.itemTable)
             ..where((t) => t.sessionId.equals(sessionId)))

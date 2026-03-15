@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'features/shopping/presentation/screens/home_screen.dart';
+
 class CartlogApp extends StatelessWidget {
   const CartlogApp({super.key});
 
@@ -10,9 +12,7 @@ class CartlogApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
       ),
-      home: const Scaffold(
-        body: Center(child: Text('Cartlog')),
-      ),
+      home: const HomeScreen(),
     );
   }
 }

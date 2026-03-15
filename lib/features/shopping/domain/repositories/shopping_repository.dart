@@ -9,6 +9,8 @@ abstract class ShoppingRepository {
   Future<void> deleteSession(int id);
 
   // Item
+  Future<List<ItemTableData>> getAllItems();
+  Future<List<String>> getStoreHistory();
   Future<List<ItemTableData>> getItemsBySession(int sessionId);
   Stream<List<ItemTableData>> watchItemsBySession(int sessionId);
   Future<int> insertItem(ItemTableCompanion item);
