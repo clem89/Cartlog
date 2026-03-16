@@ -17,17 +17,20 @@ class ItemListTile extends StatelessWidget {
 
     return ListTile(
       leading: item.category != null
-          ? CircleAvatar(
-              backgroundColor: ItemCategory.fromLabel(item.category!).color.withValues(alpha: 0.2),
-              child: Text(
-                item.category![0],
-                style: TextStyle(
-                  color: ItemCategory.fromLabel(item.category!).color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+          ? Builder(builder: (context) {
+              final cat = ItemCategory.fromLabel(item.category!);
+              return CircleAvatar(
+                backgroundColor: (cat?.color ?? Colors.grey).withValues(alpha: 0.2),
+                child: Text(
+                  item.category![0],
+                  style: TextStyle(
+                    color: cat?.color ?? Colors.grey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-            )
+              );
+            })
           : const CircleAvatar(
               backgroundColor: Colors.grey,
               child: Icon(Icons.shopping_basket, size: 16, color: Colors.white),

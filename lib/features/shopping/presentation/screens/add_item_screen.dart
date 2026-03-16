@@ -8,9 +8,7 @@ import '../../domain/models/item_category.dart';
 import '../providers/shopping_provider.dart';
 
 class AddItemScreen extends ConsumerStatefulWidget {
-  final int sessionId;
-
-  const AddItemScreen({super.key, required this.sessionId});
+  const AddItemScreen({super.key});
 
   @override
   ConsumerState<AddItemScreen> createState() => _AddItemScreenState();
@@ -25,6 +23,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
   final _storeController = TextEditingController();
   final _memoController = TextEditingController();
 
+  DateTime _selectedDate = DateTime.now();
   ItemCategory? _selectedCategory;
   String? _customCategoryLabel;
   ItemCategory? _historyFilter;
@@ -88,13 +87,28 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     }
   }
 
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) setState(() => _selectedDate = picked);
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
 
+    final store = _storeController.text.trim();
+    final sessionId = await ref
+        .read(shoppingRepositoryProvider)
+        .findOrCreateSession(_selectedDate, store.isEmpty ? '미입력' : store);
+
     await ref.read(shoppingRepositoryProvider).insertItem(
           ItemTableCompanion.insert(
-            sessionId: widget.sessionId,
+            sessionId: sessionId,
             name: _nameController.text.trim(),
             price: int.parse(_priceController.text.trim()),
             quantity: Value(double.tryParse(_quantityController.text) ?? 1.0),
@@ -129,6 +143,25 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // ── 날짜 ────────────────────────────────
+            InkWell(
+              onTap: _pickDate,
+              borderRadius: BorderRadius.circular(4),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: '날짜',
+                  border: OutlineInputBorder(),
+                  suffixIcon: Icon(Icons.calendar_today, size: 18),
+                ),
+                child: Text(
+                  '${_selectedDate.year}-'
+                  '${_selectedDate.month.toString().padLeft(2, '0')}-'
+                  '${_selectedDate.day.toString().padLeft(2, '0')}',
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
             // ── 품목명 ──────────────────────────────
             TextFormField(
               controller: _nameController,

@@ -36,6 +36,28 @@ class DriftShoppingRepository implements ShoppingRepository {
             ..where((t) => t.id.equals(id)))
           .go();
 
+  @override
+  Future<int> findOrCreateSession(DateTime date, String storeName) async {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final nextDay = dateOnly.add(const Duration(days: 1));
+
+    final existing = await (_db.select(_db.shoppingSessionTable)
+          ..where((t) =>
+              t.storeName.equals(storeName) &
+              t.date.isBiggerOrEqualValue(dateOnly) &
+              t.date.isSmallerThanValue(nextDay)))
+        .getSingleOrNull();
+
+    if (existing != null) return existing.id;
+
+    return _db.into(_db.shoppingSessionTable).insert(
+          ShoppingSessionTableCompanion.insert(
+            storeName: storeName,
+            date: dateOnly,
+          ),
+        );
+  }
+
   // ── Item ─────────────────────────────────────────────────
 
   @override

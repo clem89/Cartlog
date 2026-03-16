@@ -7,6 +7,7 @@ abstract class ShoppingRepository {
   Future<int> insertSession(ShoppingSessionTableCompanion session);
   Future<void> updateSession(ShoppingSessionTableData session);
   Future<void> deleteSession(int id);
+  Future<int> findOrCreateSession(DateTime date, String storeName);
 
   // Item
   Future<List<ItemTableData>> getAllItems();
