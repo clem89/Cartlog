@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../providers/shopping_provider.dart';
+import 'add_item_screen.dart';
 
 class StoreDetailScreen extends ConsumerWidget {
   final String storeName;
@@ -92,6 +93,48 @@ class _SessionCard extends ConsumerWidget {
                               Text(
                                 '${_fmtPrice(item.price)}원 / ${_quantityStr(item)}',
                                 style: const TextStyle(color: Colors.black54),
+                              ),
+                              PopupMenuButton<String>(
+                                iconSize: 18,
+                                padding: EdgeInsets.zero,
+                                onSelected: (value) async {
+                                  if (value == 'edit') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => AddItemScreen(
+                                          initialItem: item,
+                                          initialSession: session,
+                                        ),
+                                      ),
+                                    );
+                                  } else if (value == 'delete') {
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('품목 삭제'),
+                                        content: Text('${item.name}을(를) 삭제할까요?'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx, false),
+                                            child: const Text('취소'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx, true),
+                                            child: const Text('삭제'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirmed == true) {
+                                      await ref.read(shoppingRepositoryProvider).deleteItem(item.id);
+                                    }
+                                  }
+                                },
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(value: 'edit', child: Text('수정')),
+                                  PopupMenuItem(value: 'delete', child: Text('삭제')),
+                                ],
                               ),
                             ],
                           ),

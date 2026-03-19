@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../providers/shopping_provider.dart';
+import 'add_item_screen.dart';
 
 class ItemViewScreen extends ConsumerStatefulWidget {
   const ItemViewScreen({super.key});
@@ -112,7 +113,7 @@ class _ItemViewScreenState extends ConsumerState<ItemViewScreen> {
   }
 }
 
-class _ItemGroup extends StatelessWidget {
+class _ItemGroup extends ConsumerWidget {
   final String name;
   final List<ItemTableData> entries;
   final Map<int, ShoppingSessionTableData> sessionMap;
@@ -144,7 +145,7 @@ class _ItemGroup extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -174,6 +175,48 @@ class _ItemGroup extends StatelessWidget {
                       ),
                     ),
                     Text('${_quantityStr(item)} · ${_fmtPrice(item.price)}원'),
+                    PopupMenuButton<String>(
+                      iconSize: 18,
+                      padding: EdgeInsets.zero,
+                      onSelected: (value) async {
+                        if (value == 'edit') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AddItemScreen(
+                                initialItem: item,
+                                initialSession: session,
+                              ),
+                            ),
+                          );
+                        } else if (value == 'delete') {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('품목 삭제'),
+                              content: Text('${item.name}을(를) 삭제할까요?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('취소'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('삭제'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed == true) {
+                            await ref.read(shoppingRepositoryProvider).deleteItem(item.id);
+                          }
+                        }
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'edit', child: Text('수정')),
+                        PopupMenuItem(value: 'delete', child: Text('삭제')),
+                      ],
+                    ),
                   ],
                 ),
               );

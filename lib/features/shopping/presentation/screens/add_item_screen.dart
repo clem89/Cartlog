@@ -8,7 +8,10 @@ import '../../domain/models/item_category.dart';
 import '../providers/shopping_provider.dart';
 
 class AddItemScreen extends ConsumerStatefulWidget {
-  const AddItemScreen({super.key});
+  final ItemTableData? initialItem;
+  final ShoppingSessionTableData? initialSession;
+
+  const AddItemScreen({super.key, this.initialItem, this.initialSession});
 
   @override
   ConsumerState<AddItemScreen> createState() => _AddItemScreenState();
@@ -30,6 +33,32 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
   bool _isSaving = false;
 
   String? get _effectiveCategory => _customCategoryLabel ?? _selectedCategory?.label;
+
+  @override
+  void initState() {
+    super.initState();
+    final item = widget.initialItem;
+    final session = widget.initialSession;
+    if (item != null) {
+      _nameController.text = item.name;
+      _priceController.text = item.price.toString();
+      _quantityController.text = item.quantity == item.quantity.truncateToDouble()
+          ? item.quantity.toInt().toString()
+          : item.quantity.toString();
+      _unitController.text = item.unit ?? '';
+      _storeController.text = item.store ?? session?.storeName ?? '';
+      _memoController.text = item.memo ?? '';
+      _selectedDate = session?.date ?? DateTime.now();
+      if (item.category != null) {
+        final predefined = ItemCategory.fromLabel(item.category!);
+        if (predefined != null) {
+          _selectedCategory = predefined;
+        } else {
+          _customCategoryLabel = item.category;
+        }
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -106,24 +135,38 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
         .read(shoppingRepositoryProvider)
         .findOrCreateSession(_selectedDate, store.isEmpty ? '미입력' : store);
 
-    await ref.read(shoppingRepositoryProvider).insertItem(
-          ItemTableCompanion.insert(
-            sessionId: sessionId,
-            name: _nameController.text.trim(),
-            price: int.parse(_priceController.text.trim()),
-            quantity: Value(double.tryParse(_quantityController.text) ?? 1.0),
-            unit: Value(_unitController.text.trim().isEmpty
-                ? null
-                : _unitController.text.trim()),
-            category: Value(_effectiveCategory),
-            store: Value(_storeController.text.trim().isEmpty
-                ? null
-                : _storeController.text.trim()),
-            memo: Value(_memoController.text.trim().isEmpty
-                ? null
-                : _memoController.text.trim()),
-          ),
-        );
+    final repo = ref.read(shoppingRepositoryProvider);
+    final name = _nameController.text.trim();
+    final price = int.parse(_priceController.text.trim());
+    final quantity = double.tryParse(_quantityController.text) ?? 1.0;
+    final unit = _unitController.text.trim().isEmpty ? null : _unitController.text.trim();
+    final storeVal = _storeController.text.trim().isEmpty ? null : _storeController.text.trim();
+    final memo = _memoController.text.trim().isEmpty ? null : _memoController.text.trim();
+
+    if (widget.initialItem != null) {
+      await repo.updateItem(ItemTableData(
+        id: widget.initialItem!.id,
+        sessionId: sessionId,
+        name: name,
+        price: price,
+        quantity: quantity,
+        unit: unit,
+        category: _effectiveCategory,
+        store: storeVal,
+        memo: memo,
+      ));
+    } else {
+      await repo.insertItem(ItemTableCompanion.insert(
+        sessionId: sessionId,
+        name: name,
+        price: price,
+        quantity: Value(quantity),
+        unit: Value(unit),
+        category: Value(_effectiveCategory),
+        store: Value(storeVal),
+        memo: Value(memo),
+      ));
+    }
 
     if (mounted) Navigator.of(context).pop();
   }
@@ -135,7 +178,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('품목 추가'),
+        title: Text(widget.initialItem != null ? '품목 수정' : '품목 추가'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Form(
