@@ -4,18 +4,65 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/database/app_database.dart';
 import '../providers/shopping_provider.dart';
 
-class ItemViewScreen extends ConsumerWidget {
+class ItemViewScreen extends ConsumerStatefulWidget {
   const ItemViewScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ItemViewScreen> createState() => _ItemViewScreenState();
+}
+
+class _ItemViewScreenState extends ConsumerState<ItemViewScreen> {
+  bool _isSearching = false;
+  final _controller = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _startSearch() => setState(() => _isSearching = true);
+
+  void _stopSearch() {
+    setState(() {
+      _isSearching = false;
+      _query = '';
+      _controller.clear();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final itemsAsync = ref.watch(itemHistoryProvider);
     final sessionsAsync = ref.watch(sessionsProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('품목별 보기'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: _isSearching
+            ? TextField(
+                controller: _controller,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: '품목 이름 검색...',
+                  border: InputBorder.none,
+                ),
+                onChanged: (v) => setState(() => _query = v),
+              )
+            : const Text('품목별 보기'),
+        actions: [
+          if (_isSearching)
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: _stopSearch,
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.search),
+              onPressed: _startSearch,
+            ),
+        ],
       ),
       body: itemsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -31,13 +78,20 @@ class ItemViewScreen extends ConsumerWidget {
               ? {for (final s in sessionsAsync.valueOrNull!) s.id: s}
               : <int, ShoppingSessionTableData>{};
 
-          // 품목명 기준 그룹핑 (최근 등장 순)
           final Map<String, List<ItemTableData>> grouped = {};
           for (final item in items) {
             grouped.putIfAbsent(item.name, () => []).add(item);
           }
 
-          final names = grouped.keys.toList();
+          final names = grouped.keys
+              .where((name) => name.contains(_query))
+              .toList();
+
+          if (names.isEmpty) {
+            return const Center(
+              child: Text('검색 결과 없음', style: TextStyle(color: Colors.grey)),
+            );
+          }
 
           return ListView.builder(
             padding: const EdgeInsets.all(12),
@@ -82,6 +136,13 @@ class _ItemGroup extends StatelessWidget {
   String _fmtDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+  String _quantityStr(ItemTableData item) {
+    final qty = item.quantity == item.quantity.truncateToDouble()
+        ? item.quantity.toInt().toString()
+        : item.quantity.toString();
+    return item.unit != null ? '$qty${item.unit}' : qty;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -112,7 +173,7 @@ class _ItemGroup extends StatelessWidget {
                             color: Colors.black54, fontSize: 13),
                       ),
                     ),
-                    Text('${_fmtPrice(item.price)}원'),
+                    Text('${_quantityStr(item)} · ${_fmtPrice(item.price)}원'),
                   ],
                 ),
               );

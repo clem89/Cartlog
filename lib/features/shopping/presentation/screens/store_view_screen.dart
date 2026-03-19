@@ -1,20 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/database/app_database.dart';
 import '../providers/shopping_provider.dart';
+import 'store_detail_screen.dart';
 
-class StoreViewScreen extends ConsumerWidget {
+class StoreViewScreen extends ConsumerStatefulWidget {
   const StoreViewScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StoreViewScreen> createState() => _StoreViewScreenState();
+}
+
+class _StoreViewScreenState extends ConsumerState<StoreViewScreen> {
+  bool _isSearching = false;
+  final _controller = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _startSearch() => setState(() => _isSearching = true);
+
+  void _stopSearch() {
+    setState(() {
+      _isSearching = false;
+      _query = '';
+      _controller.clear();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final sessionsAsync = ref.watch(sessionsProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('마트별 보기'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: _isSearching
+            ? TextField(
+                controller: _controller,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: '마트 이름 검색...',
+                  border: InputBorder.none,
+                ),
+                onChanged: (v) => setState(() => _query = v),
+              )
+            : const Text('마트별 보기'),
+        actions: [
+          if (_isSearching)
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: _stopSearch,
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.search),
+              onPressed: _startSearch,
+            ),
+        ],
       ),
       body: sessionsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -25,108 +72,51 @@ class StoreViewScreen extends ConsumerWidget {
               child: Text('기록이 없습니다', style: TextStyle(color: Colors.grey)),
             );
           }
-          return ListView.builder(
+
+          final Map<String, int> storeCount = {};
+          for (final s in sessions) {
+            storeCount[s.storeName] = (storeCount[s.storeName] ?? 0) + 1;
+          }
+
+          final storeNames = storeCount.keys
+              .where((name) => name.contains(_query))
+              .toList();
+
+          if (storeNames.isEmpty) {
+            return const Center(
+              child: Text('검색 결과 없음', style: TextStyle(color: Colors.grey)),
+            );
+          }
+
+          return ListView.separated(
             padding: const EdgeInsets.all(12),
-            itemCount: sessions.length,
-            itemBuilder: (context, index) =>
-                _SessionGroup(session: sessions[index]),
+            itemCount: storeNames.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 4),
+            itemBuilder: (context, index) {
+              final store = storeNames[index];
+              final count = storeCount[store]!;
+              return Card(
+                child: ListTile(
+                  title: Text(
+                    store,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text('$count회 방문'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => StoreDetailScreen(storeName: store),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
           );
         },
       ),
     );
-  }
-}
-
-class _SessionGroup extends ConsumerWidget {
-  final ShoppingSessionTableData session;
-
-  const _SessionGroup({required this.session});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final itemsAsync = ref.watch(itemsProvider(session.id));
-    final d = session.date;
-    final dateStr =
-        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$dateStr · ${session.storeName}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-            ),
-            const Divider(height: 16),
-            itemsAsync.when(
-              loading: () => const SizedBox(
-                height: 24,
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-              ),
-              error: (e, _) => Text('오류: $e'),
-              data: (items) {
-                if (items.isEmpty) {
-                  return const Text('품목 없음',
-                      style: TextStyle(color: Colors.grey, fontSize: 13));
-                }
-                final total = items.fold<int>(
-                    0, (sum, i) => sum + (i.price * i.quantity).round());
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ...items.map((item) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 3),
-                          child: Row(
-                            children: [
-                              Expanded(child: Text(item.name)),
-                              Text(
-                                '${_fmtPrice(item.price)}원'
-                                ' / ${_quantityStr(item)}',
-                                style: const TextStyle(color: Colors.black54),
-                              ),
-                            ],
-                          ),
-                        )),
-                    const Divider(height: 14),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('${items.length}개 품목',
-                            style: const TextStyle(
-                                color: Colors.grey, fontSize: 13)),
-                        Text(
-                          '총 ${_fmtPrice(total)}원',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _fmtPrice(int price) {
-    final s = price.toString();
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
-
-  String _quantityStr(ItemTableData item) {
-    final qty = item.quantity == item.quantity.truncateToDouble()
-        ? item.quantity.toInt().toString()
-        : item.quantity.toString();
-    return item.unit != null ? '$qty${item.unit}' : qty;
   }
 }
