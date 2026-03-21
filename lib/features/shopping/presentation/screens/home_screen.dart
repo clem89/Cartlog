@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'add_item_screen.dart';
 import 'item_view_screen.dart';
+import 'receipt_scan_screen.dart';
 import 'store_view_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -43,6 +44,14 @@ class HomeScreen extends StatelessWidget {
                 isPrimary: true,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const AddItemScreen()),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _HomeButton(
+                icon: Icons.receipt_long_outlined,
+                label: '영수증 등록',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ReceiptScanScreen()),
                 ),
               ),
             ],
