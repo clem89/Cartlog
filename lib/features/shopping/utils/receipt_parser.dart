@@ -11,9 +11,24 @@ class ReceiptParser {
         .toList();
 
     final items = <ParsedReceiptItem>[];
+    var lastItemPercentDiscounted = false; // 동일 품목에 퍼센트 할인 중복 방지
 
     for (final line in lines) {
-      // 할인줄: 직전 품목 가격에서 차감
+      // 퍼센트 할인줄: 직전 품목 가격에서 X% 차감 (품목당 1회 제한)
+      final percent = _extractPercentDiscount(line);
+      if (percent != null) {
+        if (!lastItemPercentDiscounted && items.isNotEmpty && items.last.price != null) {
+          final last = items.last;
+          final discountAmount = (last.price! * percent / 100).round();
+          items[items.length - 1] = last.copyWith(
+            price: (last.price! - discountAmount).clamp(0, last.price!),
+          );
+          lastItemPercentDiscounted = true;
+        }
+        continue;
+      }
+
+      // 고정금액 할인줄: 직전 품목 가격에서 차감
       final discount = _extractDiscount(line);
       if (discount != null) {
         if (items.isNotEmpty && items.last.price != null) {
@@ -35,9 +50,21 @@ class ReceiptParser {
       if (price == null) continue; // 가격 없는 줄은 가게명·헤더·서브아이템으로 간주
 
       items.add(ParsedReceiptItem(name: name, price: price));
+      lastItemPercentDiscounted = false;
     }
 
     return items;
+  }
+
+  /// 퍼센트 할인줄 감지 (예: [할인쿠폰] 50%) → 퍼센트 반환
+  static int? _extractPercentDiscount(String line) {
+    const discountKeywords = ['할인', '쿠폰', 'L.POINT', 'LPOINT', '포인트'];
+    final hasKeyword = discountKeywords.any((kw) => line.contains(kw));
+    if (!hasKeyword) return null;
+
+    final match = RegExp(r'\b(\d{1,2})%').firstMatch(line);
+    if (match != null) return int.tryParse(match.group(1)!);
+    return null;
   }
 
   /// 할인줄 판별 및 할인액 추출 (양수로 반환)
@@ -46,6 +73,10 @@ class ReceiptParser {
     const discountKeywords = ['할인', '쿠폰', 'L.POINT', 'LPOINT', '포인트', '적립할인', '즉시할인'];
 
     final hasKeyword = discountKeywords.any((kw) => line.contains(kw));
+
+    // 할인 키워드 없는 단독 음수 줄은 할인으로 처리하지 않음
+    // (영수증 우측 '할인 상세내역' 열의 독립 숫자들이 잘못 적용되는 것 방지)
+    if (!hasKeyword) return null;
 
     // 음수 금액 패턴 (예: -500, -1,000) — 공백/줄시작 뒤의 마이너스만 인정 (카드번호 내 하이픈 제외)
     final negativeMatch = RegExp(r'(?:^|(?<=\s))-\s*(\d{1,3}(?:,\d{3})+|\d+)', multiLine: true).firstMatch(line);
@@ -107,18 +138,23 @@ class ReceiptParser {
 
   /// 합계/소계/세금 등 잡음 라인 판별
   static bool _isNoise(String line) {
+    // OCR이 한글 사이에 공백을 삽입하는 경우 대응 (예: "소 계" → "소계")
+    final compact = line.replaceAll(' ', '');
+
     const noiseKeywords = [
       '합계', '소계', '부가세', '카드', '현금', '거스름돈', '받은금액',
       '승인', '가맹점', '사업자', '전화', 'TEL', 'tel',
       '영수증', '감사합니다', '결제금액', '판매금액', '총액', '총계',
       '신한', 'KB', 'NH', 'BC', '롯데카드', '현대카드', '우리카드', '하나카드',
+      '마스터', 'MASTER', 'VISA', '비자', '개인신용', '법인',
       '할부', '일시불', '체크',
       '마트', '슈퍼', '편의점', '백화점', '코스트코',
       '주문', '번호', '상품명', '수량',
+      '특별시', '광역시', '특별자치도',
     ];
 
     for (final kw in noiseKeywords) {
-      if (line.contains(kw)) return true;
+      if (line.contains(kw) || compact.contains(kw)) return true;
     }
 
     // 날짜 패턴 (2024-01-01, 2024/01/01)
@@ -129,6 +165,9 @@ class ReceiptParser {
 
     // 카드번호 패턴 (4자리 그룹 2개 이상: 1234-5678 or 1234 5678)
     if (RegExp(r'\d{4}[\s\-]\d{4}').hasMatch(line)) return true;
+
+    // 주소 패턴: [한글](로|길|대로|번길) 숫자 로 끝나는 줄
+    if (RegExp(r'[가-힣]+(로|길|대로|번길)\s+\d+$').hasMatch(line)) return true;
 
     // 숫자와 특수문자만인 경우
     if (RegExp(r'^[\d\s\-=*.,#]+$').hasMatch(line)) return true;

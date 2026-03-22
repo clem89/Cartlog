@@ -160,6 +160,88 @@ L.POINT할인          -500
     });
   });
 
+  group('ReceiptParser - 롯데마트 4컬럼 형식', () {
+    test('상품명 수량 단가 금액 4컬럼 — 마지막 금액 추출', () {
+      const text = '''
+콘푸로스트켈로그     1   4,580   4,580
+서울우유1L           2   2,980   5,960
+참치캔고추           3   2,490   7,470
+두부찌개용           1   2,980   2,980
+''';
+      final items = ReceiptParser.parse(text);
+      expect(items.length, 4);
+      expect(items[0].price, 4580);
+      expect(items[1].price, 5960);
+      expect(items[2].price, 7470);
+      expect(items[3].price, 2980);
+    });
+
+    test('행사할인 차감', () {
+      const text = '''
+콘푸로스트켈로그     1   4,580   4,580
+행사할인                          -460
+서울우유1L           2   2,980   5,960
+''';
+      final items = ReceiptParser.parse(text);
+      expect(items.length, 2);
+      expect(items[0].price, 4120); // 4,580 - 460
+      expect(items[1].price, 5960);
+    });
+
+    test('회원할인 차감', () {
+      const text = '''
+샴푸려윤고보습       1  12,900  12,900
+회원할인                        -1,000
+''';
+      final items = ReceiptParser.parse(text);
+      expect(items.length, 1);
+      expect(items[0].price, 11900);
+    });
+
+    test('OCR 헤더 "상 품 명  수 량  단 가  금 액" 제외', () {
+      const text = '''
+상 품 명        수 량   단 가    금 액
+콘푸로스트       1      4,580    4,580
+두부             1      2,980    2,980
+''';
+      final items = ReceiptParser.parse(text);
+      expect(items.length, 2);
+      expect(items[0].price, 4580);
+    });
+
+    test('롯데마트 실제 영수증 시나리오', () {
+      const text = '''
+롯데마트 잠실점
+서울시 송파구
+사업자번호 123-45-67890
+TEL 02-123-4567
+2021-11-21 13:05
+
+상 품 명        수 량   단 가    금 액
+콘푸로스트켈로그  1     4,580    4,580
+행사할인                          -460
+서울우유1L        2     2,980    5,960
+L.POINT할인                       -500
+참치캔고추        3     2,490    7,470
+두부찌개용        1     2,980    2,980
+
+소 계                            20,550
+부가세                            1,868
+합 계                            20,550
+카드결제                         20,550
+신한카드 1234-5678-****-1234
+승인번호 98765432
+감사합니다
+''';
+      final items = ReceiptParser.parse(text);
+      expect(items.length, 4);
+      expect(items[0].price, 4120); // 4,580 - 460
+      expect(items[1].price, 5460); // 5,960 - 500
+      expect(items[2].price, 7470);
+      expect(items[3].price, 2980);
+    });
+  });
+
   group('ReceiptParser - 롯데리아 스타일 영수증', () {
     test('상품명/수량/금액 헤더줄 제외', () {
       const text = '''

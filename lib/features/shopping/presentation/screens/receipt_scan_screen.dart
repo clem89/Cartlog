@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -14,6 +15,7 @@ class ReceiptScanScreen extends StatefulWidget {
 
 class _ReceiptScanScreenState extends State<ReceiptScanScreen> {
   bool _isProcessing = false;
+  String? _lastOcrText;
 
   Future<void> _pickAndProcess(ImageSource source) async {
     final picker = ImagePicker();
@@ -30,6 +32,8 @@ class _ReceiptScanScreenState extends State<ReceiptScanScreen> {
       await recognizer.close();
       // ignore: avoid_print
       print('=== OCR RAW ===\n${result.text}');
+
+      setState(() => _lastOcrText = result.text);
 
       final items = ReceiptParser.parse(result.text);
 
@@ -55,6 +59,15 @@ class _ReceiptScanScreenState extends State<ReceiptScanScreen> {
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
+  }
+
+  Future<void> _copyOcrText() async {
+    if (_lastOcrText == null) return;
+    await Clipboard.setData(ClipboardData(text: _lastOcrText!));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('OCR 텍스트가 클립보드에 복사됐습니다.')),
+    );
   }
 
   @override
@@ -114,6 +127,14 @@ class _ReceiptScanScreenState extends State<ReceiptScanScreen> {
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.grey, fontSize: 13),
                     ),
+                    if (_lastOcrText != null) ...[
+                      const SizedBox(height: 24),
+                      OutlinedButton.icon(
+                        onPressed: _copyOcrText,
+                        icon: const Icon(Icons.copy_outlined, size: 16),
+                        label: const Text('OCR 텍스트 복사'),
+                      ),
+                    ],
                   ],
                 ),
               ),

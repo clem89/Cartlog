@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/app_database.dart';
+import '../../domain/models/item_category.dart';
 import '../../domain/models/parsed_receipt_item.dart';
 import '../providers/shopping_provider.dart';
 
@@ -50,46 +51,63 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
     final nameCtrl = TextEditingController(text: item.name);
     final priceCtrl =
         TextEditingController(text: item.price?.toString() ?? '');
+    ItemCategory? selectedCategory = item.category;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('품목 수정'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(labelText: '품목명'),
-              autofocus: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('품목 수정'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: '품목명'),
+                autofocus: true,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: priceCtrl,
+                decoration: const InputDecoration(labelText: '가격 (원)'),
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<ItemCategory?>(
+                value: selectedCategory,
+                decoration: const InputDecoration(labelText: '카테고리'),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('미분류')),
+                  ...ItemCategory.values.map(
+                    (c) => DropdownMenuItem(value: c, child: Text(c.label)),
+                  ),
+                ],
+                onChanged: (v) => setDialogState(() => selectedCategory = v),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('취소'),
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: priceCtrl,
-              decoration: const InputDecoration(labelText: '가격 (원)'),
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            FilledButton(
+              onPressed: () {
+                setState(() {
+                  _items[index] = ParsedReceiptItem(
+                    name: nameCtrl.text.trim().isEmpty ? item.name : nameCtrl.text.trim(),
+                    price: int.tryParse(priceCtrl.text) ?? item.price,
+                    selected: item.selected,
+                    category: selectedCategory,
+                  );
+                });
+                Navigator.pop(ctx);
+              },
+              child: const Text('확인'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () {
-              setState(() {
-                _items[index] = item.copyWith(
-                  name: nameCtrl.text.trim().isEmpty ? item.name : nameCtrl.text.trim(),
-                  price: int.tryParse(priceCtrl.text),
-                );
-              });
-              Navigator.pop(ctx);
-            },
-            child: const Text('확인'),
-          ),
-        ],
       ),
     );
   }
@@ -123,6 +141,7 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
             name: Value(item.name),
             price: Value(item.price ?? 0),
             store: Value(storeName),
+            category: Value(item.category?.label),
           ),
         );
       }
@@ -244,9 +263,26 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
                     }),
                   ),
                   title: Text(item.name),
-                  subtitle: item.price != null
-                      ? Text('${_formatPrice(item.price!)}원')
-                      : const Text('가격 미인식', style: TextStyle(color: Colors.orange)),
+                  subtitle: Row(
+                    children: [
+                      if (item.category != null)
+                        Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: item.category!.color.withAlpha(38),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            item.category!.label,
+                            style: TextStyle(fontSize: 11, color: item.category!.color),
+                          ),
+                        ),
+                      item.price != null
+                          ? Text('${_formatPrice(item.price!)}원')
+                          : const Text('가격 미인식', style: TextStyle(color: Colors.orange)),
+                    ],
+                  ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
