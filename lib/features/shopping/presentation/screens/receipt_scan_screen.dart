@@ -28,6 +28,8 @@ class _ReceiptScanScreenState extends State<ReceiptScanScreen> {
       final recognizer = TextRecognizer(script: TextRecognitionScript.korean);
       final result = await recognizer.processImage(inputImage);
       await recognizer.close();
+      // ignore: avoid_print
+      print('=== OCR RAW ===\n${result.text}');
 
       final items = ReceiptParser.parse(result.text);
 
